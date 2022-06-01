@@ -1,36 +1,82 @@
-import React, {useState} from 'react';
-import ClassCounter from './components/ClassCounter.jsx';
-import Counter from './components/Counter.jsx';
+import axios from 'axios';
+import React, {useEffect, useState} from 'react';
+import PostService from './API/PostService.js';
+import PostFilter from './components/PostFilter.jsx';
+import PostForm from './components/PostForm.jsx';
 
 import PostList from './components/PostList';
 import MyButton from './components/UI/button/MyButton.jsx';
-import MyInput from './components/UI/input/MyInput.jsx';
+import Loader from './components/UI/loader/Loader.jsx';
+import MyModal from './components/UI/modal/MyModal.jsx';
+import Pagination from './components/UI/pagination/Pagination.jsx';
+import { useFetching } from './hooks/useFetching.js';
+import {usePosts} from './hooks/usePosts.js';
+import {getPageCount, getPagesArray} from './utils/pages.js';
+
+
 
 function App() {
   const [posts, setPosts] = useState([
-    {id: 1, title: 'JavaScript', body: 'Decription'},
-    {id: 2, title: 'Java', body: 'Decription'},
-    {id: 3, title: 'C#', body: 'Decription'}
   ]);
-  const [title, setTitle] = useState('');
-  const addNewPost = (e) => {
-    e.preventDefault();
-    console.log(title);
+
+  const [filter, setFilter] = useState({sort: '', query: ''});
+  const [modal, setModal] = useState(false);
+  const sortedAndSearchedPosts = usePosts(posts, filter.sort, filter.query);
+  const [totalPages, setTotalPages] = useState(0);
+  const [limit, setLimit] = useState(10);
+  const [page, setPage] = useState(1);
+  const [fetchPosts, isPostsLoading, postError] = useFetching(async () => {
+    const response = await PostService.getAll(limit, page);
+    setPosts(response.data);
+    const totalCount = response.headers['x-total-count'];
+    setTotalPages(getPageCount(totalCount, limit));
+  });
+
+  useEffect(() => {
+    fetchPosts()
+  }, [page]);
+
+  const createPost = (newPost) => {
+    setPosts([...posts, newPost]);
+    setModal(false);
+  }
+
+  const removePost = (post) => {
+    setPosts(posts.filter(p => p.id !== post.id))
+  }
+
+  const changePage = (page) => {
+    setPage(page);
   }
 
   return (
     <div className="App">
-      <form>
-        <MyInput 
-          value={title} 
-          onChange={e => setTitle(e.target.value)}
-          type='text' 
-          placeholder='Название'></MyInput>
-        <MyInput type='text' placeholder='Описание'></MyInput>
-        <MyButton onClick={addNewPost}>Создать пост</MyButton>
-      </form>
-      <PostList posts={posts} title={'Список постов 1'}/>
-      <Counter/>
+      <button onClick={fetchPosts}>GET POSTS</button>
+      <MyButton style={{marginTop: '30px'}} onClick={() => setModal(true)}>
+        Создать пост
+      </MyButton>
+      <MyModal visible={modal} setVisible={setModal}>
+        <PostForm create={createPost}/>
+      </MyModal>
+      <hr style={{margin: '15px 0'}}></hr>
+      <PostFilter 
+        filter={filter} 
+        setFilter={setFilter}
+      />
+      {postError && 
+        <h1>Произошла ошибка ${postError}</h1>
+      }
+      {isPostsLoading
+        ? <div style={{display: 'flex', justifyContent: 'center', marginTop: '50px'}}>
+            <Loader/>
+          </div>
+        : <PostList remove={removePost} posts={sortedAndSearchedPosts} title={'Список постов 1'}/>
+      }
+      <Pagination 
+        totalPages={totalPages} 
+        page={page} 
+        changePage={changePage}/>
+      {/*<Counter/>*/}
     </div>
   );
 }
