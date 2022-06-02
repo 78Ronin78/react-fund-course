@@ -1,83 +1,34 @@
-import axios from 'axios';
-import React, {useEffect, useState} from 'react';
-import PostService from './API/PostService.js';
-import PostFilter from './components/PostFilter.jsx';
-import PostForm from './components/PostForm.jsx';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route} from 'react-router-dom';
+import Navbar from './components/UI/navbar/Navbar.jsx';
+import AppRouter from './components/AppRouter.jsx';
+import { AuthContext } from './context/index.js';
 
-import PostList from './components/PostList';
-import MyButton from './components/UI/button/MyButton.jsx';
-import Loader from './components/UI/loader/Loader.jsx';
-import MyModal from './components/UI/modal/MyModal.jsx';
-import Pagination from './components/UI/pagination/Pagination.jsx';
-import { useFetching } from './hooks/useFetching.js';
-import {usePosts} from './hooks/usePosts.js';
-import {getPageCount, getPagesArray} from './utils/pages.js';
 
 
 
 function App() {
-  const [posts, setPosts] = useState([
-  ]);
-
-  const [filter, setFilter] = useState({sort: '', query: ''});
-  const [modal, setModal] = useState(false);
-  const sortedAndSearchedPosts = usePosts(posts, filter.sort, filter.query);
-  const [totalPages, setTotalPages] = useState(0);
-  const [limit, setLimit] = useState(10);
-  const [page, setPage] = useState(1);
-  const [fetchPosts, isPostsLoading, postError] = useFetching(async () => {
-    const response = await PostService.getAll(limit, page);
-    setPosts(response.data);
-    const totalCount = response.headers['x-total-count'];
-    setTotalPages(getPageCount(totalCount, limit));
-  });
+  const [isAuth, setIsAuth] = useState(false);
+  const [isLoading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchPosts()
-  }, [page]);
-
-  const createPost = (newPost) => {
-    setPosts([...posts, newPost]);
-    setModal(false);
-  }
-
-  const removePost = (post) => {
-    setPosts(posts.filter(p => p.id !== post.id))
-  }
-
-  const changePage = (page) => {
-    setPage(page);
-  }
+    if(localStorage.getItem('auth')){
+      setIsAuth(true);
+    }
+    setLoading(false);
+  }, []);
 
   return (
-    <div className="App">
-      <button onClick={fetchPosts}>GET POSTS</button>
-      <MyButton style={{marginTop: '30px'}} onClick={() => setModal(true)}>
-        Создать пост
-      </MyButton>
-      <MyModal visible={modal} setVisible={setModal}>
-        <PostForm create={createPost}/>
-      </MyModal>
-      <hr style={{margin: '15px 0'}}></hr>
-      <PostFilter 
-        filter={filter} 
-        setFilter={setFilter}
-      />
-      {postError && 
-        <h1>Произошла ошибка ${postError}</h1>
-      }
-      {isPostsLoading
-        ? <div style={{display: 'flex', justifyContent: 'center', marginTop: '50px'}}>
-            <Loader/>
-          </div>
-        : <PostList remove={removePost} posts={sortedAndSearchedPosts} title={'Список постов 1'}/>
-      }
-      <Pagination 
-        totalPages={totalPages} 
-        page={page} 
-        changePage={changePage}/>
-      {/*<Counter/>*/}
-    </div>
+    <AuthContext.Provider value={{
+      isAuth,
+      setIsAuth,
+      isLoading
+    }}>
+      <BrowserRouter>
+        <Navbar/>
+        <AppRouter/>
+      </BrowserRouter>
+    </AuthContext.Provider>
   );
 }
 
